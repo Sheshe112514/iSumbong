@@ -2,6 +2,7 @@ package com.example.isumbong;
 
 import android.annotation.SuppressLint;
 import android.app.Dialog;
+import android.content.Context;
 import android.content.DialogInterface;
 import android.content.Intent;
 import android.graphics.Color;
@@ -16,6 +17,7 @@ import android.widget.AdapterView;
 import android.widget.ArrayAdapter;
 import android.widget.Button;
 import android.widget.EditText;
+import android.widget.ImageButton;
 import android.widget.ImageView;
 import android.widget.LinearLayout;
 import android.widget.ListView;
@@ -77,6 +79,7 @@ public class admin_create_report extends AppCompatActivity implements OnMapReady
             }
         });
 
+
     }
     public void setInfo(){
         TextView officer = findViewById(R.id.textView_create_officer);
@@ -93,7 +96,7 @@ public class admin_create_report extends AppCompatActivity implements OnMapReady
         date.setText(DnT);
         email.setText(db.getEmail(user));
     }
-    private String setDate(){
+    public String setDate(){
         SimpleDateFormat dateN = new SimpleDateFormat("MMMM dd, yyyy (HH:mm:ss)", Locale.getDefault());
         return dateN.format(Calendar.getInstance().getTime());
     }
@@ -112,8 +115,10 @@ public class admin_create_report extends AppCompatActivity implements OnMapReady
 
         EditText search = dialog.findViewById(R.id.editText_search_verified);
         ListView listView = dialog.findViewById(R.id.listview_verified_serial);
+        TextView tView = dialog.findViewById(R.id.textView_def);
         ArrayAdapter<String> verifiedSerial = new ArrayAdapter<>(this,android.R.layout.simple_dropdown_item_1line,vserial);
         listView.setAdapter(verifiedSerial);
+        listView.setEmptyView(tView);
         search.addTextChangedListener(new TextWatcher() {
             @Override
             public void beforeTextChanged(CharSequence charSequence, int i, int i1, int i2) {
@@ -157,7 +162,7 @@ public class admin_create_report extends AppCompatActivity implements OnMapReady
 
         String text = textView.getText().toString();
 //        text1.add(text+"\n");
-        text1 += text+" ";
+        text1 += text+"\n";
 
 //        textView.setBackgroundColor(R.color.grey);
 //        textView.setTextColor(android.R.color.black);
@@ -169,7 +174,6 @@ public class admin_create_report extends AppCompatActivity implements OnMapReady
             public void onClick(View view) {
 
                     getAttachedView(queryString, linearLayout, textView);
-                    Toast.makeText(admin_create_report.this, ""+queryString, Toast.LENGTH_SHORT).show();
             }
         });
 
@@ -185,11 +189,26 @@ public class admin_create_report extends AppCompatActivity implements OnMapReady
         //GET VICTIMS ID BASED ON VSERIAL
         int id = getInfoVserial(queryString);
 
+        admin_report_files layout = new admin_report_files();
+
+        ArrayList<String> offenses = db.getOffenses(db.getLicenseNumber(id));
+        ArrayAdapter<String> adapterOff = new ArrayAdapter<>(this, android.R.layout.simple_dropdown_item_1line, offenses);
+
+        ArrayList<String> reports_list = db.getReports(db.getLicenseNumber(id));
+        ArrayAdapter<String> adapter_rep = new ArrayAdapter<> (this, android.R.layout.simple_dropdown_item_1line, reports_list);
+
         View viewS = getLayoutInflater().inflate(R.layout.admin_builder_attached_serial, null);
+
+        ImageButton viewBtn = viewS.findViewById(R.id.imageButton_attached_off);
+        View viewB = getLayoutInflater().inflate(R.layout.builder_offenses, null);
+        Context ctx = admin_create_report.this;
+
         setNumber(id,viewS);
         setVictimDetais(id,viewS);
         setImgs(id,viewS);
         Infos(id,viewS);
+
+        layout.offensesButton(viewBtn,viewB,id,adapterOff, adapter_rep, ctx);
 
         AlertDialog.Builder builder = new AlertDialog.Builder(this);
         builder.setTitle(queryString)
@@ -218,34 +237,46 @@ public class admin_create_report extends AppCompatActivity implements OnMapReady
 
     private void submitReport(){
         String serials = text1;
+        String details = getStatement();
 
-        AlertDialog.Builder builder = new AlertDialog.Builder(this);
-        builder.setTitle("INCIDENT REPORT "+""+reportSerial)
-                .setMessage("Are you sure to proceed creating this report?")
-                .setPositiveButton("YES", new DialogInterface.OnClickListener() {
-                    @Override
-                    public void onClick(DialogInterface dialogInterface, int i) {
+        if(details.matches("") && serials.matches("")){
+            Toast.makeText(admin_create_report.this, "There is an empty field!", Toast.LENGTH_SHORT).show();
+        }
+        else if(details.matches("")){
+           Toast.makeText(admin_create_report.this, "Incident details field is empty", Toast.LENGTH_SHORT).show();
+        }
+        else if(serials.matches("")){
+            Toast.makeText(admin_create_report.this, "Reference report files are required", Toast.LENGTH_SHORT).show();
+        }
 
-                        boolean check = db.InsertIncidentReport(getType(),getOfficer(),getEmail(),getSector(),getDate(),getStatement(),serials,reportSerial);
-//                        Toast.makeText(admin_create_report.this, ""+getType()+""+getOfficer()+""+getEmail()+""+getSector()+""+getDate()+""+getStatement(), Toast.LENGTH_SHORT).show();
-                        if (check) {
-                            Toast.makeText(admin_create_report.this, "Incident Report Created", Toast.LENGTH_SHORT).show();
-                            Intent intent = new Intent(admin_create_report.this, admin_report_files.class);
-                            intent.putExtra("selected", 2);
-                            startActivity(intent);
-                            finish();
 
-                        } else
-                            Toast.makeText(admin_create_report.this, "ERROR", Toast.LENGTH_SHORT).show();
-                    }
-                })
-                .setNegativeButton("NO", new DialogInterface.OnClickListener() {
-                    @Override
-                    public void onClick(DialogInterface dialogInterface, int i) {
-                        Toast.makeText(admin_create_report.this, ""+text1, Toast.LENGTH_SHORT).show();
-                    }
-                })
-                .show();
+        else {
+            AlertDialog.Builder builder = new AlertDialog.Builder(this);
+            builder.setTitle("INCIDENT REPORT "+""+reportSerial)
+                    .setMessage("Proceed creating this report?")
+                    .setPositiveButton("YES", new DialogInterface.OnClickListener() {
+                        @Override
+                        public void onClick(DialogInterface dialogInterface, int i) {
+
+                            boolean check = db.InsertIncidentReport(getType(),getOfficer(),getEmail(),getSector(),getDate(),getStatement(),serials,reportSerial);
+                            if (check) {
+                                Toast.makeText(admin_create_report.this, "Incident Report Created", Toast.LENGTH_SHORT).show();
+                                Intent intent = new Intent(admin_create_report.this, admin_report_files.class);
+                                intent.putExtras(getIntent()).putExtra("selected",2);
+                                startActivity(intent);
+
+                            } else
+                                Toast.makeText(admin_create_report.this, "ERROR", Toast.LENGTH_SHORT).show();
+                        }
+                    })
+                    .setNegativeButton("NO", new DialogInterface.OnClickListener() {
+                        @Override
+                        public void onClick(DialogInterface dialogInterface, int i) {
+                          dialogInterface.dismiss();
+                        }
+                    })
+                    .show();
+            }
     }
 
     //SET BUILDER INFORMATION
@@ -351,22 +382,7 @@ public class admin_create_report extends AppCompatActivity implements OnMapReady
         return statement.getText().toString();
     }
 
-//    @RequiresApi(api = Build.VERSION_CODES.N)
-//    private String getSerial(){
-//        int leftLimit = 48; // numeral '0'
-//        int rightLimit = 122; // letter 'z'
-//        int targetStringLength = 8;
-//        Random random = new Random();
-//
-//        String generatedString = random.ints(leftLimit, rightLimit + 1)
-//                .filter(i -> (i <= 57 || i >= 65) && (i <= 90 || i >= 97))
-//                .limit(targetStringLength)
-//                .collect(StringBuilder::new, StringBuilder::appendCodePoint, StringBuilder::append)
-//                .toString();
-//        Toast.makeText(admin_create_report.this, ""+generatedString, Toast.LENGTH_SHORT).show();
-//        return generatedString;
-//
-//    }
+
 private static final String ALPHABET = "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";
 
     public String generateString(int length) {
